@@ -25,6 +25,8 @@
     -   [正式賽](https://sorahisa-rank.github.io/oi-toi/2024/ranking/)
 -   2025
     -   [正式賽](https://sorahisa-rank.github.io/oi-toi/2025/ranking/)
+-   2026
+    -   [正式賽](https://sorahisa-rank.github.io/oi-toi/2026/ranking/)
 
 # AA 競程 - TOI 模擬賽
 
