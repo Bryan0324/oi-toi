@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TOI 初選 — 互動式得分進度圖</title>
+  <title>TOI 初選 — 互動式圖表</title>
   <style>
     body {
       font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -14,23 +14,26 @@
       line-height: 1.6;
     }
     h1 { font-size: 1.8rem; border-bottom: 2px solid #4e79a7; padding-bottom: 8px; }
+    h2 { font-size: 1.3rem; margin-top: 32px; color: #4e79a7; }
     p  { color: #555; }
     ul { list-style: none; padding: 0; }
-    li { margin: 10px 0; }
+    li { margin: 8px 0; }
     a.chart-link {
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      padding: 12px 20px;
+      padding: 10px 18px;
       background: #4e79a7;
       color: #fff;
       border-radius: 6px;
       text-decoration: none;
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: bold;
       transition: background 0.2s;
     }
     a.chart-link:hover { background: #3a5f8a; }
+    a.chart-link.solves { background: #59a14f; }
+    a.chart-link.solves:hover { background: #407a39; }
     .note {
       margin-top: 32px;
       font-size: 0.85rem;
@@ -41,17 +44,30 @@
   </style>
 </head>
 <body>
-  <h1>TOI 初選 — 互動式得分進度圖</h1>
+  <h1>TOI 初選 — 互動式圖表</h1>
+
+  <h2>📈 得分進度圖</h2>
   <p>
-    每張圖呈現一場比賽中所有選手的累積全題最佳分數（global score）隨時間的變化。<br>
-    前 100 名選手以鮮明顏色顯示；其餘選手以淡灰色顯示。<br>
-    可滑鼠縮放、拖曳，並 hover 查詢每個提交點的時間與分數。
+    呈現一場比賽中所有選手的累積全題最佳分數（global score）隨時間的變化。<br>
+    前 100 名選手以鮮明顏色顯示；其餘選手以淡灰色顯示。
   </p>
   <ul>
-    <li><a class="chart-link" href="2024-TOI2024.html">📊 2024 TOI初選</a></li>
-    <li><a class="chart-link" href="2025-TOI2025.html">📊 2025 TOI初選</a></li>
-    <li><a class="chart-link" href="2026-TOI2026.html">📊 2026 TOI初選</a></li>
+    <li><a class="chart-link" href="2024-TOI2024.html">📊 2024 TOI初選 — 得分進度</a></li>
+    <li><a class="chart-link" href="2025-TOI2025.html">📊 2025 TOI初選 — 得分進度</a></li>
+    <li><a class="chart-link" href="2026-TOI2026.html">📊 2026 TOI初選 — 得分進度</a></li>
   </ul>
+
+  <h2>✅ 各題答對人數隨時間變化</h2>
+  <p>
+    呈現每場比賽中，各題累計首次答對（滿分）的人數隨比賽時間的變化。<br>
+    每條線代表一道題，可 hover 查詢各時間點的答對人數。
+  </p>
+  <ul>
+    <li><a class="chart-link solves" href="2024-TOI2024-solves.html">✅ 2024 TOI初選 — 各題答對人數</a></li>
+    <li><a class="chart-link solves" href="2025-TOI2025-solves.html">✅ 2025 TOI初選 — 各題答對人數</a></li>
+    <li><a class="chart-link solves" href="2026-TOI2026-solves.html">✅ 2026 TOI初選 — 各題答對人數</a></li>
+  </ul>
+
   <div class="note">
     圖表由 <a href="../tools/generate_plots.py">tools/generate_plots.py</a> 自動產生。
     詳細使用說明請見 <a href="../tools/README.md">tools/README.md</a>。

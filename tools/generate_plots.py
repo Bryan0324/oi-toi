@@ -2,12 +2,16 @@
 """
 generate_plots.py
 -----------------
-Generates one interactive Plotly HTML chart per year
+Generates interactive Plotly HTML charts per year
 (2024, 2025, 2026) for Bryan0324/oi-toi.
 
-Each chart shows every contestant's cumulative global-best score
-(sum of per-task best scores) over elapsed contest time.
-Every submission / history record is rendered as a point on the line.
+Chart 1 — Global Score Progress (one file per year):
+    Shows every contestant's cumulative global-best score
+    (sum of per-task best scores) over elapsed contest time.
+
+Chart 2 — Per-Task Solve Count (one file per year):
+    Shows, for each task, how many contestants first achieved
+    full score (答對) over elapsed contest time as a step chart.
 
 Usage
 -----
@@ -22,10 +26,13 @@ Arguments
 
 Output
 ------
-    <OUT_DIR>/plotly.min.js          (shared Plotly bundle, ~4.8 MB, written once)
-    <OUT_DIR>/2024-TOI2024.html
+    <OUT_DIR>/plotly.min.js               (shared Plotly bundle, ~4.8 MB, written once)
+    <OUT_DIR>/2024-TOI2024.html           (score progress)
+    <OUT_DIR>/2024-TOI2024-solves.html    (per-task solve count)
     <OUT_DIR>/2025-TOI2025.html
+    <OUT_DIR>/2025-TOI2025-solves.html
     <OUT_DIR>/2026-TOI2026.html
+    <OUT_DIR>/2026-TOI2026-solves.html
 
 Requirements
 ------------
@@ -283,6 +290,182 @@ def build_figure(data: dict) -> go.Figure:
     return fig
 
 
+# ─── Per-Task Solve Count ────────────────────────────────────────────────────
+def process_year_task_solves(year: str):
+    """
+    Read ranking data for *year* and compute, for each task, the list of
+    elapsed-time values at which each new contestant first achieved full score
+    (max_score) on that task.
+
+    Returns a dict ready for build_task_solves_figure(), or None if required
+    files are missing.
+    """
+    rank_dir = REPO_ROOT / year / "ranking"
+    contests_file = rank_dir / "contests" / "index.json"
+    history_file = rank_dir / "history"
+    tasks_file = rank_dir / "tasks" / "index.json"
+
+    if not contests_file.exists():
+        print(f"  [{year}] Missing {contests_file}, skipping solves chart.", file=sys.stderr)
+        return None
+    if not history_file.exists():
+        print(f"  [{year}] Missing {history_file}, skipping solves chart.", file=sys.stderr)
+        return None
+    if not tasks_file.exists():
+        print(f"  [{year}] Missing {tasks_file}, skipping solves chart.", file=sys.stderr)
+        return None
+
+    contests = json.loads(contests_file.read_text(encoding="utf-8"))
+    contest_key = next(iter(contests))
+    contest = contests[contest_key]
+    begin = contest["begin"]
+    end = contest["end"]
+
+    tasks = json.loads(tasks_file.read_text(encoding="utf-8"))
+    history = json.loads(history_file.read_text(encoding="utf-8"))
+
+    # Keep only records inside the contest window, sorted by time
+    records = sorted(
+        (r for r in history if begin <= r[2] <= end),
+        key=lambda r: r[2],
+    )
+
+    task_max = {tid: tdata["max_score"] for tid, tdata in tasks.items()}
+    task_name = {tid: tdata.get("name", tid) for tid, tdata in tasks.items()}
+    task_order = {tid: tdata.get("order", 0) for tid, tdata in tasks.items()}
+
+    # For each task: list of elapsed seconds at which first solves occurred
+    task_first_solves: dict[str, list[int]] = {tid: [] for tid in tasks}
+    # Track which users have already achieved full score per task
+    user_task_solved: dict[str, set[str]] = {}
+
+    for user, task, t, score in records:
+        if task not in task_max:
+            continue
+        if score >= task_max[task]:
+            solved = user_task_solved.setdefault(user, set())
+            if task not in solved:
+                solved.add(task)
+                task_first_solves[task].append(t - begin)
+
+    return {
+        "year": year,
+        "contest_key": contest_key,
+        "contest_name": contest["name"],
+        "begin": begin,
+        "end": end,
+        "tasks": tasks,
+        "task_name": task_name,
+        "task_order": task_order,
+        "task_first_solves": task_first_solves,
+    }
+
+
+def build_task_solves_figure(data: dict) -> go.Figure:
+    """
+    Build a step-line chart where each line represents one task and the
+    Y-axis shows the cumulative number of contestants who have first achieved
+    full score (答對) on that task by a given elapsed time.
+    """
+    contest_name = data["contest_name"]
+    contest_key = data["contest_key"]
+    begin = data["begin"]
+    end = data["end"]
+    tasks = data["tasks"]
+    task_name = data["task_name"]
+    task_order = data["task_order"]
+    task_first_solves = data["task_first_solves"]
+
+    duration_sec = end - begin
+    tickvals, ticktext = build_ticks(duration_sec, n_ticks=12)
+
+    fig = go.Figure()
+
+    sorted_tasks = sorted(tasks.keys(), key=lambda t: task_order.get(t, 0))
+
+    for ci, task_id in enumerate(sorted_tasks):
+        first_solves = sorted(task_first_solves.get(task_id, []))
+        name = task_name.get(task_id, task_id)
+        color = PALETTE[ci % len(PALETTE)]
+        total_solvers = len(first_solves)
+
+        # Build step-line: start at (0, 0), step up at each first solve
+        xs: list[int] = [0]
+        ys: list[int] = [0]
+        for count, elapsed in enumerate(first_solves, start=1):
+            xs.append(elapsed)
+            ys.append(count)
+        # Extend line to end of contest
+        xs.append(duration_sec)
+        ys.append(total_solvers)
+
+        hover = [
+            f"<b>{name}</b><br>Time: {fmt_elapsed(x)}<br>答對人數: {y}"
+            for x, y in zip(xs, ys)
+        ]
+
+        fig.add_trace(
+            go.Scatter(
+                x=xs,
+                y=ys,
+                mode="lines",
+                name=name,
+                line=dict(color=color, width=2, shape="hv"),
+                hovertemplate="%{customdata}<extra></extra>",
+                customdata=hover,
+            )
+        )
+
+    start_utc = datetime.fromtimestamp(begin, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    fig.update_layout(
+        title=dict(
+            text=f"{contest_name} — 各題答對人數隨時間變化",
+            font=dict(size=20),
+        ),
+        xaxis=dict(
+            title="Elapsed Time",
+            tickvals=tickvals,
+            ticktext=ticktext,
+            range=[0, duration_sec],
+            showgrid=True,
+            gridcolor="#ececec",
+        ),
+        yaxis=dict(
+            title="答對人數（累計首次滿分）",
+            showgrid=True,
+            gridcolor="#ececec",
+        ),
+        hovermode="closest",
+        legend=dict(
+            orientation="v",
+            x=1.01,
+            y=1,
+            xanchor="left",
+            bgcolor="rgba(255,255,255,0.85)",
+            font=dict(size=11),
+        ),
+        margin=dict(r=230, t=80, b=60, l=65),
+        paper_bgcolor="#ffffff",
+        plot_bgcolor="#f9f9f9",
+        annotations=[
+            dict(
+                text=(
+                    f"Contest: {contest_key} &nbsp;|&nbsp; "
+                    f"Start: {start_utc} &nbsp;|&nbsp; "
+                    f"Tasks: {len(sorted_tasks)}"
+                ),
+                xref="paper", yref="paper",
+                x=0, y=1.055,
+                showarrow=False,
+                font=dict(size=11, color="#666"),
+                align="left",
+            )
+        ],
+    )
+    return fig
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(
@@ -340,6 +523,29 @@ def main():
         html_size = out_file.stat().st_size / 1024
         print(f"  Output  : {out_file} ({html_size:.0f} KB)")
         generated += 1
+
+        # ── Per-task solve count chart ────────────────────────────────────
+        solves_data = process_year_task_solves(year)
+        if solves_data is not None:
+            fig_solves = build_task_solves_figure(solves_data)
+            out_file_solves = out_dir / f"{year}-{data['contest_key']}-solves.html"
+            fig_solves.write_html(
+                str(out_file_solves),
+                include_plotlyjs="directory",
+                config=dict(
+                    responsive=True,
+                    scrollZoom=True,
+                    displaylogo=False,
+                    toImageButtonOptions=dict(
+                        format="png",
+                        filename=f"{data['contest_key']}-solves",
+                    ),
+                    modeBarButtonsToRemove=["select2d", "lasso2d"],
+                ),
+            )
+            solves_size = out_file_solves.stat().st_size / 1024
+            print(f"  Solves  : {out_file_solves} ({solves_size:.0f} KB)")
+            generated += 1
 
     js_path = out_dir / "plotly.min.js"
     if js_path.exists():
