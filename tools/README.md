@@ -18,6 +18,12 @@ Python 3.8+ and the `plotly` package:
 pip install plotly
 ```
 
+or use the provided requirements file:
+
+```bash
+pip install -r tools/requirements.txt
+```
+
 ---
 
 ## Usage
@@ -99,3 +105,32 @@ semi-transparent grey without legend entries.
 | `<year>/ranking/contests/index.json` | Contest key, start/end timestamps, score precision |
 | `<year>/ranking/history` | Submission time-series: `[user, task, unix_timestamp, score]` |
 | `<year>/ranking/users/index.json` | Optional display names / school affiliations |
+
+---
+
+## GitHub Pages auto-publish
+
+The workflow at `.github/workflows/deploy.yml` runs automatically on every
+push to `main`:
+
+1. Checks out the repository
+2. Installs `plotly` from `tools/requirements.txt`
+3. Runs `python3 tools/generate_plots.py` to produce the HTML charts
+4. Deploys the entire repository (including the generated `plots/` directory)
+   to GitHub Pages via `actions/deploy-pages`
+
+After the workflow completes the charts are accessible at:
+
+```
+https://<owner>.github.io/<repo>/plots/
+https://<owner>.github.io/<repo>/plots/2024-TOI2024.html
+https://<owner>.github.io/<repo>/plots/2025-TOI2025.html
+https://<owner>.github.io/<repo>/plots/2026-TOI2026.html
+```
+
+To trigger a re-deploy manually, go to **Actions → Generate Plots & Deploy
+to GitHub Pages → Run workflow**.
+
+> **First-time setup:** In the repository **Settings → Pages**, set the
+> source to **"GitHub Actions"** (not a branch).  This is required for the
+> `actions/deploy-pages` step to work.

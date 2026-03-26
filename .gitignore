@@ -2,4 +2,5 @@
 
 # Generated plot files (run tools/generate_plots.py to recreate)
 /plots/*.html
+!/plots/index.html
 /plots/plotly.min.js
