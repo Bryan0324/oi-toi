@@ -1,0 +1,58 @@
+name: Generate Plots & Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # Allow manual trigger from the Actions tab
+  workflow_dispatch:
+
+# Grant the GITHUB_TOKEN the permissions needed for Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deployment runs at a time; cancel any in-progress run when a new
+# push arrives so the site always reflects the latest commit.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  # ─── 1. Generate plots ─────────────────────────────────────────────────────
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r tools/requirements.txt
+
+      - name: Generate interactive HTML charts
+        run: python3 tools/generate_plots.py
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Deploy the entire repository root so all existing ranking pages
+          # (e.g. 2024/ranking/) remain accessible alongside the new plots.
+          path: "."
+
+  # ─── 2. Deploy to GitHub Pages ─────────────────────────────────────────────
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
